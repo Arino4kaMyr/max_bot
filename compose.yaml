@@ -1,0 +1,31 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: accessible
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U app -d accessible']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      BOT_TOKEN: ${BOT_TOKEN:?BOT_TOKEN не задан — скопируйте .env.example в .env}
+      DATABASE_URL: postgres://app:app@db:5432/accessible
+      CITY_SLUG: ${CITY_SLUG:-kzn}
+      CITY_TZ: ${CITY_TZ:-Europe/Moscow}
+      SYNC_CRON: ${SYNC_CRON:-0 * * * *}
+      DIGEST_CRON: ${DIGEST_CRON:-0 12 * * 4}
+    restart: unless-stopped
+
+volumes:
+  pgdata:

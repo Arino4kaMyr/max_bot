@@ -1,0 +1,402 @@
+{
+  "_disclaimer": "ДЕМОНСТРАЦИОННЫЙ НАБОР. Признаки доступности подобраны по типу и характеру зданий и НЕ проверены на месте. В интерфейсе бота такие данные подписаны «Демонстрационные данные — требуют проверки на месте». Перед пилотным запуском каждое значение проверяется очно или подтверждается площадкой, после чего source меняется на manual или partner.",
+  "_source": "Реквизиты, адреса и координаты площадок — публичное API KudaGo (kudago.com/public-api).",
+  "city": {
+    "slug": "kzn",
+    "name": "Казань",
+    "tz": "Europe/Moscow"
+  },
+  "venues": [
+    {
+      "kudagoPlaceId": 4702,
+      "kudagoSlug": "nacionalnyj-muzej-respubliki-tatarstan",
+      "name": "Национальный музей Республики Татарстан",
+      "address": "ул. Кремлёвская, д. 2",
+      "lat": 55.79559999999997,
+      "lon": 49.11011500000001,
+      "features": {
+        "entrance_step_free": {
+          "value": "yes",
+          "note": "пандус слева от главного входа"
+        },
+        "ramp": {
+          "value": "yes",
+          "note": null
+        },
+        "door_width_90": {
+          "value": "yes",
+          "note": null
+        },
+        "lift": {
+          "value": "partial",
+          "note": "не на все этажи экспозиции"
+        },
+        "wc_accessible": {
+          "value": "yes",
+          "note": "1 этаж, у гардероба"
+        },
+        "parking_disabled": {
+          "value": "yes",
+          "note": "2 места со стороны Кремлёвской"
+        },
+        "companion_free": {
+          "value": "yes",
+          "note": "по удостоверению об инвалидности"
+        },
+        "tactile_exhibits": {
+          "value": "partial",
+          "note": "отдельные экспонаты в зале археологии"
+        }
+      }
+    },
+    {
+      "kudagoPlaceId": 7798,
+      "kudagoSlug": "nacionalnaya-hudozhestvennaya-galereya-hazine",
+      "name": "Национальная художественная галерея «Хазинэ»",
+      "address": "Кремль, подъезд 3",
+      "lat": 55.79574699997472,
+      "lon": 49.10962099999999,
+      "features": {
+        "entrance_step_free": {
+          "value": "no",
+          "note": "вход по лестнице, подъёмника нет"
+        },
+        "ramp": {
+          "value": "no",
+          "note": null
+        },
+        "companion_free": {
+          "value": "yes",
+          "note": null
+        }
+      }
+    },
+    {
+      "kudagoPlaceId": 18393,
+      "kudagoSlug": "galereya-sovremennogo-iskusstva",
+      "name": "галерея современного искусства",
+      "address": "ул. Карла Маркса, д. 57",
+      "lat": 55.795555,
+      "lon": 49.13597800000001,
+      "features": {
+        "entrance_step_free": {
+          "value": "yes",
+          "note": "вход на уровне тротуара"
+        },
+        "ramp": {
+          "value": "yes",
+          "note": null
+        },
+        "door_width_90": {
+          "value": "yes",
+          "note": null
+        },
+        "lift": {
+          "value": "yes",
+          "note": "на все выставочные этажи"
+        },
+        "wc_accessible": {
+          "value": "yes",
+          "note": null
+        },
+        "wheelchair_seats": {
+          "value": "yes",
+          "note": "лекционный зал, первый ряд"
+        },
+        "parking_disabled": {
+          "value": "yes",
+          "note": null
+        },
+        "companion_free": {
+          "value": "yes",
+          "note": null
+        }
+      }
+    },
+    {
+      "kudagoPlaceId": 4698,
+      "kudagoSlug": "muzej-izobrazitelnyh-iskusstv",
+      "name": "Музей изобразительных искусств Республики Татарстан",
+      "address": "ул. К. Маркса, д. 64",
+      "lat": 55.7946839999999,
+      "lon": 49.13417199999999,
+      "features": {
+        "entrance_step_free": {
+          "value": "partial",
+          "note": "пандус крутой, потребуется помощь"
+        },
+        "ramp": {
+          "value": "partial",
+          "note": null
+        },
+        "wc_accessible": {
+          "value": "no",
+          "note": "санузлы в историческом здании не адаптированы"
+        },
+        "companion_free": {
+          "value": "yes",
+          "note": null
+        }
+      }
+    },
+    {
+      "kudagoPlaceId": 35505,
+      "kudagoSlug": "dom-kulturyi-moskovskij",
+      "name": "культурный центр «Московский»",
+      "address": "ул. Академика Королева, д. 47",
+      "lat": 55.83823899999982,
+      "lon": 49.06658790000024,
+      "features": {
+        "entrance_step_free": {
+          "value": "yes",
+          "note": null
+        },
+        "ramp": {
+          "value": "yes",
+          "note": null
+        },
+        "door_width_90": {
+          "value": "yes",
+          "note": null
+        },
+        "lift": {
+          "value": "yes",
+          "note": null
+        },
+        "wc_accessible": {
+          "value": "yes",
+          "note": null
+        },
+        "wheelchair_seats": {
+          "value": "yes",
+          "note": "места в конце партера"
+        },
+        "companion_free": {
+          "value": "yes",
+          "note": null
+        },
+        "induction_loop": {
+          "value": "no",
+          "note": null
+        }
+      }
+    },
+    {
+      "kudagoPlaceId": 4634,
+      "kudagoSlug": "muzej-zapovednik-kazanskij-kreml",
+      "name": "музей-заповедник «Казанский кремль»",
+      "address": "Кремль",
+      "lat": 55.7977017548241,
+      "lon": 49.10383097622552,
+      "features": {
+        "entrance_step_free": {
+          "value": "yes",
+          "note": "въезд через Спасскую башню, без ступеней"
+        },
+        "wc_accessible": {
+          "value": "yes",
+          "note": "у Манежа"
+        },
+        "parking_disabled": {
+          "value": "yes",
+          "note": null
+        },
+        "companion_free": {
+          "value": "yes",
+          "note": null
+        },
+        "guide_dog_allowed": {
+          "value": "yes",
+          "note": null
+        }
+      }
+    },
+    {
+      "kudagoPlaceId": 4155,
+      "kudagoSlug": "mechet-kul-sharif",
+      "name": "мечеть Кул Шариф",
+      "address": "Кремль",
+      "lat": 55.78876299999999,
+      "lon": 49.09900299999998,
+      "features": {
+        "entrance_step_free": {
+          "value": "yes",
+          "note": "пандус с южной стороны"
+        },
+        "ramp": {
+          "value": "yes",
+          "note": null
+        },
+        "wc_accessible": {
+          "value": "partial",
+          "note": "кабина широкая, поручней нет"
+        },
+        "companion_free": {
+          "value": "yes",
+          "note": null
+        }
+      }
+    },
+    {
+      "kudagoPlaceId": 4700,
+      "kudagoSlug": "muzej-kvartira-musy-dzhalilya",
+      "name": "Музей-квартира Мусы Джалиля",
+      "address": "ул. Максима Горького, д. 17",
+      "lat": 55.79397980000003,
+      "lon": 49.13172619999997,
+      "features": {
+        "entrance_step_free": {
+          "value": "no",
+          "note": "музей-квартира, подъём по лестнице"
+        },
+        "ramp": {
+          "value": "no",
+          "note": null
+        },
+        "companion_free": {
+          "value": "yes",
+          "note": null
+        }
+      }
+    },
+    {
+      "kudagoPlaceId": 4667,
+      "kudagoSlug": "kremlevskij-vystavochnyj-zal-manezh",
+      "name": "Кремлевский выставочный зал «Манеж»",
+      "address": "Кремль, д. 11",
+      "lat": 55.78876299999999,
+      "lon": 49.09900299999998,
+      "features": {
+        "entrance_step_free": {
+          "value": "yes",
+          "note": "пандус у главного входа"
+        },
+        "ramp": {
+          "value": "yes",
+          "note": null
+        },
+        "door_width_90": {
+          "value": "yes",
+          "note": null
+        },
+        "lift": {
+          "value": "no",
+          "note": "второй этаж только по лестнице"
+        },
+        "wc_accessible": {
+          "value": "yes",
+          "note": null
+        },
+        "companion_free": {
+          "value": "yes",
+          "note": null
+        }
+      }
+    },
+    {
+      "kudagoPlaceId": 4640,
+      "kudagoSlug": "muzej-istorii-respubliki-tatarstan",
+      "name": "Музей истории государственности татарского народа и Республики Татарстан",
+      "address": "Кремль",
+      "lat": 55.78876299999999,
+      "lon": 49.09900299999998,
+      "features": {
+        "entrance_step_free": {
+          "value": "partial",
+          "note": "две ступени у входа, есть съезд сбоку"
+        },
+        "companion_free": {
+          "value": "yes",
+          "note": null
+        }
+      }
+    },
+    {
+      "kudagoPlaceId": 4694,
+      "kudagoSlug": "literaturnyj-muzej-gabdully-tukaya",
+      "name": "Литературный музей Габдуллы Тукая",
+      "address": "ул. Габдуллы Тукая, д. 74",
+      "lat": 55.77750050000004,
+      "lon": 49.11540049999989,
+      "features": {
+        "entrance_step_free": {
+          "value": "no",
+          "note": "историческое здание, вход по лестнице"
+        },
+        "companion_free": {
+          "value": "yes",
+          "note": null
+        }
+      }
+    },
+    {
+      "kudagoPlaceId": 4638,
+      "kudagoSlug": "muzej-estestvennoj-istorii-tatarstana",
+      "name": "Музей естественной истории Татарстана",
+      "address": "Кремль",
+      "lat": 55.78876299999999,
+      "lon": 49.09900299999998,
+      "features": {
+        "entrance_step_free": {
+          "value": "yes",
+          "note": null
+        },
+        "ramp": {
+          "value": "yes",
+          "note": null
+        },
+        "door_width_90": {
+          "value": "yes",
+          "note": null
+        },
+        "lift": {
+          "value": "yes",
+          "note": null
+        },
+        "wc_accessible": {
+          "value": "yes",
+          "note": null
+        },
+        "tactile_exhibits": {
+          "value": "yes",
+          "note": "метеориты и минералы можно трогать"
+        },
+        "companion_free": {
+          "value": "yes",
+          "note": null
+        },
+        "parking_disabled": {
+          "value": "yes",
+          "note": null
+        }
+      }
+    },
+    {
+      "kudagoPlaceId": 4671,
+      "kudagoSlug": "muzej-s-sajdasheva",
+      "name": "музей Салиха Сайдашева",
+      "address": "ул. Горького, д. 13",
+      "lat": 55.79430999999989,
+      "lon": 49.13018299999997,
+      "features": {}
+    },
+    {
+      "kudagoPlaceId": 27460,
+      "kudagoSlug": "galereya-slavy-zajceva",
+      "name": "галерея Славы Зайцева",
+      "address": "ул. Островского, д. 9/3",
+      "lat": 55.788366000000146,
+      "lon": 49.103743000000264,
+      "features": {}
+    },
+    {
+      "kudagoPlaceId": 4693,
+      "kudagoSlug": "muzej-e-boratynskogo",
+      "name": "Музей Евгения Боратынского",
+      "address": "ул. Максима Горького, д. 25/28",
+      "lat": 55.79389999999997,
+      "lon": 49.135403,
+      "features": {}
+    }
+  ]
+}

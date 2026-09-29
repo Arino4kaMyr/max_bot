@@ -1,0 +1,28 @@
+{
+  "name": "accessible-leisure-bot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "build": "tsc -p tsconfig.json && cp src/data/schema.sql dist/data/schema.sql",
+    "start": "node dist/main.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "seed": "tsx src/data/seed.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@maxhub/max-bot-api": "^0.3.1",
+    "node-cron": "^4.6.0",
+    "postgres": "^3.4.9",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^5.0.2"
+  }
+}
