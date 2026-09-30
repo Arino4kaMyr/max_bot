@@ -3,3 +3,7 @@ dist/
 .env
 *.log
 .DS_Store
+
+# Материалы презентации — держим локально
+docs/presentation-brief.md
+docs/presentation-spec.md
