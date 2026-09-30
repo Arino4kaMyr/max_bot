@@ -16,7 +16,7 @@ import {
   submitAnswer,
 } from '../../services/contribute.js';
 import { situationsOf } from '../../services/recommend.js';
-import { ack, patchPayload, setScene, stateOf } from '../context.js';
+import { ack, patchPayload, screen, setScene, stateOf } from '../context.js';
 import { HOME_ROW, kb, type Row } from '../keyboards.js';
 
 const { callback } = Keyboard.button;
@@ -53,7 +53,7 @@ export function registerVerify(bot: Composer<Context>): void {
     const extra = VISITOR_ASKABLE.filter((k) => !asked.includes(k));
 
     if (extra.length === 0) {
-      await ctx.reply('Уже всё спросил. Спасибо!', kb([HOME_ROW]));
+      await screen(ctx, 'Больше спрашивать нечего. Спасибо!', kb([HOME_ROW]));
       return;
     }
 
@@ -73,18 +73,18 @@ export async function askNextVerification(ctx: Context): Promise<void> {
 
   if (index >= keys.length) {
     await setScene(ctx, null);
-    await ctx.reply('Спасибо! Данные обновил.', kb([HOME_ROW]));
+    await screen(ctx, 'Спасибо, данные обновлены.', kb([HOME_ROW]));
     return;
   }
 
   // Первые ASK_AFTER_EVENT вопросов задаём сами, дальше — только по просьбе.
   if (index === ASK_AFTER_EVENT && keys.length > ASK_AFTER_EVENT) {
     const rows: Row[] = [
-      [callback('➕ Добавить ещё', `vrf:more:${venueId}`)],
-      [callback('Хватит', 'menu')],
+      [callback('➕ Ответить ещё на несколько', `vrf:more:${venueId}`)],
+      [callback('На сегодня всё', 'menu')],
     ];
     await setScene(ctx, null);
-    await ctx.reply('Спасибо! Этого уже достаточно.', kb(rows));
+    await screen(ctx, 'Этого достаточно. Спасибо, что нашёл время.', kb(rows));
     return;
   }
 
@@ -94,7 +94,7 @@ export async function askNextVerification(ctx: Context): Promise<void> {
     return askNextVerification(ctx);
   }
 
-  await ctx.reply(
+  await screen(ctx, 
     question.text,
     kb([
       [callback('Да', 'vrf:yes'), callback('Нет', 'vrf:no')],
@@ -114,7 +114,7 @@ export async function buildAfterEventPrompt(
   if (!venue || !first) return null;
 
   return {
-    intro: `Ты был в месте «${venue.name}». Помоги следующим — пара вопросов.`,
+    intro: `Ты был в месте «${venue.name}». Расскажешь, как там на самом деле?`,
     keys: questions.map((q) => q.key),
     first: first.text,
   };

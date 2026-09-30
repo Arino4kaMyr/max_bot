@@ -16,6 +16,7 @@ import {
   ensureUser,
 } from '../data/repos.js';
 import { countSuitable, recommend, situationsOf } from '../services/recommend.js';
+import { adoptScreen } from './context.js';
 import { questionsAfterEvent } from '../services/contribute.js';
 import { getVenue } from '../data/repos.js';
 
@@ -36,7 +37,7 @@ export async function sendWeekendDigest(api: Api, city: City): Promise<number> {
       const count = countSuitable(result);
       if (count === 0) continue;
 
-      await api.sendMessageToUser(
+      const message = await api.sendMessageToUser(
         user.maxUserId,
         `На выходных в Казани нашлось ${count} ${plural(count)}, куда ты сможешь попасть.`,
         keyboard([
@@ -44,6 +45,8 @@ export async function sendWeekendDigest(api: Api, city: City): Promise<number> {
           [callback('Не писать мне', 'digest:off')],
         ]),
       );
+      // Сообщение становится новым экраном — дальше бот правит его.
+      await adoptScreen(user.maxUserId, message.body.mid);
       sent++;
     } catch (error) {
       console.error(`Сводка не доставлена пользователю ${user.maxUserId}:`, error);
@@ -81,14 +84,15 @@ export async function askAfterEvents(api: Api, city: City): Promise<number> {
       session.payload = { venueId: item.venueId, keys: questions.map((q) => q.key) };
       await saveSession(item.maxUserId, session);
 
-      await api.sendMessageToUser(
+      const message = await api.sendMessageToUser(
         item.maxUserId,
-        `Ты был в месте «${venue.name}». Помоги следующим — ${first.text}`,
+        `Ты был в месте «${venue.name}». Расскажешь, как там на самом деле?\n\n${first.text}`,
         keyboard([
           [callback('Да', 'vrf:yes'), callback('Нет', 'vrf:no')],
           [callback('Не помню', 'vrf:skip')],
         ]),
       );
+      await adoptScreen(item.maxUserId, message.body.mid);
       await markAsked(item.maxUserId, item.eventId);
       asked++;
     } catch (error) {

@@ -54,6 +54,8 @@ export interface SessionRow {
   scene: string | null;
   step: number;
   payload: Record<string, unknown>;
+  /** Сообщение-экран, которое бот правит вместо отправки новых. */
+  screenMid: string | null;
 }
 
 // ---------- города ----------
@@ -392,6 +394,11 @@ export async function categoriesInUse(cityId: number, from: Date): Promise<strin
   return rows.map((r) => r.category);
 }
 
+export async function deleteEventsByCategories(categories: string[]): Promise<void> {
+  if (categories.length === 0) return;
+  await db()`DELETE FROM events WHERE category = ANY(${categories})`;
+}
+
 export async function lastSyncAt(): Promise<Date | null> {
   const [row] = await db()<{ synced_at: Date | null }[]>`
     SELECT MAX(synced_at) AS synced_at FROM events
@@ -474,24 +481,42 @@ export async function usersForDigest(cityId: number): Promise<UserRow[]> {
 }
 
 export async function getSession(maxUserId: number): Promise<SessionRow> {
-  const [row] = await db()<{ scene: string | null; step: number; payload: Record<string, unknown> }[]>`
-    SELECT scene, step, payload FROM user_sessions WHERE max_user_id = ${maxUserId}
-  `;
-  return row ?? { scene: null, step: 0, payload: {} };
+  const [row] = await db()<
+    { scene: string | null; step: number; payload: Record<string, unknown>; screen_mid: string | null }[]
+  >`SELECT scene, step, payload, screen_mid FROM user_sessions WHERE max_user_id = ${maxUserId}`;
+
+  if (!row) return { scene: null, step: 0, payload: {}, screenMid: null };
+  return { scene: row.scene, step: row.step, payload: row.payload, screenMid: row.screen_mid };
 }
 
 export async function saveSession(maxUserId: number, session: SessionRow): Promise<void> {
   await db()`
-    INSERT INTO user_sessions (max_user_id, scene, step, payload, updated_at)
-    VALUES (${maxUserId}, ${session.scene}, ${session.step}, ${db().json(session.payload as never)}::jsonb, now())
+    INSERT INTO user_sessions (max_user_id, scene, step, payload, screen_mid, updated_at)
+    VALUES (${maxUserId}, ${session.scene}, ${session.step},
+            ${db().json(session.payload as never)}::jsonb, ${session.screenMid}, now())
     ON CONFLICT (max_user_id) DO UPDATE
       SET scene = EXCLUDED.scene, step = EXCLUDED.step,
-          payload = EXCLUDED.payload, updated_at = now()
+          payload = EXCLUDED.payload, screen_mid = EXCLUDED.screen_mid, updated_at = now()
   `;
 }
 
-export async function clearSession(maxUserId: number): Promise<void> {
-  await db()`DELETE FROM user_sessions WHERE max_user_id = ${maxUserId}`;
+/** Сбрасывает сцену, но сохраняет экран — его бот продолжает править. */
+export async function clearScene(maxUserId: number, screenMid: string | null): Promise<void> {
+  await db()`
+    INSERT INTO user_sessions (max_user_id, scene, step, payload, screen_mid, updated_at)
+    VALUES (${maxUserId}, NULL, 0, '{}'::jsonb, ${screenMid}, now())
+    ON CONFLICT (max_user_id) DO UPDATE
+      SET scene = NULL, step = 0, payload = '{}'::jsonb,
+          screen_mid = EXCLUDED.screen_mid, updated_at = now()
+  `;
+}
+
+export async function setScreenMid(maxUserId: number, mid: string): Promise<void> {
+  await db()`
+    INSERT INTO user_sessions (max_user_id, screen_mid, updated_at)
+    VALUES (${maxUserId}, ${mid}, now())
+    ON CONFLICT (max_user_id) DO UPDATE SET screen_mid = EXCLUDED.screen_mid, updated_at = now()
+  `;
 }
 
 // ---------- голоса, посещения, фото ----------

@@ -88,8 +88,13 @@ CREATE TABLE IF NOT EXISTS user_sessions (
   scene       TEXT,
   step        INTEGER NOT NULL DEFAULT 0,
   payload     JSONB NOT NULL DEFAULT '{}'::jsonb,
+  -- Идентификатор сообщения-экрана: бот правит его вместо отправки новых.
+  -- Хранится отдельно от payload, чтобы переход между сценами его не стирал.
+  screen_mid  TEXT,
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS screen_mid TEXT;
 
 -- Один пользователь — один голос по каждому признаку каждой площадки.
 CREATE TABLE IF NOT EXISTS verifications (

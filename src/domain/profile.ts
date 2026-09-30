@@ -90,7 +90,7 @@ export const SITUATION_DEFS: Record<Situation, SituationDef> = {
   },
   vision: {
     id: 'vision',
-    label: 'Важно зрение',
+    label: 'Проблемы со зрением',
     short: 'зрение',
     requirements: [
       { key: 'audio_description', level: 'important' },
@@ -101,7 +101,7 @@ export const SITUATION_DEFS: Record<Situation, SituationDef> = {
   },
   hearing: {
     id: 'hearing',
-    label: 'Важно слух',
+    label: 'Проблемы со слухом',
     short: 'слух',
     requirements: [
       { key: 'sign_language', level: 'important' },

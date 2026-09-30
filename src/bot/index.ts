@@ -1,7 +1,7 @@
 import { Bot, Keyboard, type Context } from '@maxhub/max-bot-api';
 import type { City } from '../data/repos.js';
 import { setDigestOptin } from '../data/repos.js';
-import { ack, stateOf, withState } from './context.js';
+import { ack, screen, stateOf, withState } from './context.js';
 import { kb, mainMenu, periodRows } from './keyboards.js';
 import { registerContribute } from './scenes/contribute.js';
 import { registerDiscover } from './scenes/discover.js';
@@ -12,9 +12,9 @@ import { situationsOf } from '../services/recommend.js';
 const { callback } = Keyboard.button;
 
 const GREETING =
-  'Привет! Я помогаю находить места и события в Казани, куда реально можно попасть.\n\n' +
-  'Показываю не значок «доступно», а что именно есть на площадке: ступени на входе, ' +
-  'лифт, туалет, места для колясок, перевод на РЖЯ. И всегда пишу, откуда эти данные.';
+  'Привет! Я помогаю находить в Казани места и события, куда правда можно попасть.\n\n' +
+  'Вместо значка «доступно» — конкретика: ступени на входе, лифт, туалет, места ' +
+  'для колясок, перевод на РЖЯ. И всегда видно, откуда эти сведения и когда их проверяли.';
 
 export function createBot(token: string, city: City): Bot<Context> {
   const bot = new Bot(token);
@@ -23,40 +23,51 @@ export function createBot(token: string, city: City): Bot<Context> {
 
   bot.command('start', async (ctx) => {
     const { user } = stateOf(ctx);
-    await ctx.reply(GREETING, kb(mainMenu(situationsOf(user).length > 0)));
+    await screen(ctx, GREETING, kb(mainMenu(situationsOf(user).length > 0)));
   });
 
   bot.on('bot_started', async (ctx) => {
     const { user } = stateOf(ctx);
-    await ctx.reply(GREETING, kb(mainMenu(situationsOf(user).length > 0)));
+    await screen(ctx, GREETING, kb(mainMenu(situationsOf(user).length > 0)));
   });
 
   bot.command(['help', 'помощь'], async (ctx) => {
-    await ctx.reply(
-      'Что я умею:\n\n' +
-        '• подобрать события под твои потребности — «Подобрать, куда сходить»\n' +
-        '• собрать профиль компании — «Идём компанией»\n' +
-        '• принять данные о доступности от тебя — «Помочь с данными»\n\n' +
-        'Команды: /start — начать заново, /profile — изменить профиль.',
+    await screen(ctx, 
+      'Вот что я умею:\n\n' +
+        '• искать события, которые тебе подойдут — «Подобрать, куда сходить»\n' +
+        '• учитывать всю компанию сразу — «Идём компанией»\n' +
+        '• сохранить то, что ты знаешь о месте — «Рассказать о месте»\n\n' +
+        'Откуда я беру события: афиша KudaGo, обновляю её каждый час.\n' +
+        'Откуда сведения о доступности: часть собрали мы, часть — посетители. ' +
+        'Под каждой карточкой написано, кто это проверял и когда.\n\n' +
+        '/start — начать сначала, /profile — изменить, что для тебя важно.',
       kb([[callback('🏠 В начало', 'menu')]]),
     );
   });
 
   bot.command(['profile', 'профиль'], async (ctx) => {
-    await ctx.reply('Настроим профиль заново.', kb([[callback('⚙️ Изменить профиль', 'onb:start')]]));
+    await screen(
+      ctx,
+      'Давай уточним, что для тебя важно.',
+      kb([[callback('⚙️ Изменить профиль', 'onb:start')]]),
+    );
   });
 
   bot.action('menu', async (ctx) => {
     await ack(ctx);
     const { user } = stateOf(ctx);
-    await ctx.reply('Чем помочь?', kb(mainMenu(situationsOf(user).length > 0)));
+    await screen(ctx, 'Чем могу помочь?', kb(mainMenu(situationsOf(user).length > 0)));
   });
 
   bot.action('digest:off', async (ctx) => {
     const { user } = stateOf(ctx);
     await setDigestOptin(user.maxUserId, false);
-    await ack(ctx, 'Больше не пишу');
-    await ctx.reply('Хорошо, напоминания выключил. Включить обратно — /start.', kb(periodRows()));
+    await ack(ctx, 'Хорошо, не буду писать');
+    await screen(
+      ctx,
+      'Больше не напоминаю о выходных. Если передумаешь — набери /start.',
+      kb(periodRows()),
+    );
   });
 
   registerOnboarding(bot);
@@ -67,8 +78,8 @@ export function createBot(token: string, city: City): Bot<Context> {
   // Текст вне сценария: подсказываем, а не молчим.
   bot.on('message_created', async (ctx) => {
     const { user } = stateOf(ctx);
-    await ctx.reply(
-      'Я понимаю кнопки — так быстрее и меньше шансов ошибиться.',
+    await screen(ctx, 
+      'Я отвечаю на кнопки — так надёжнее. Выбери, с чего начнём.',
       kb(mainMenu(situationsOf(user).length > 0)),
     );
   });
@@ -78,8 +89,8 @@ export function createBot(token: string, city: City): Bot<Context> {
     console.error('Ошибка обработки:', error);
     try {
       await ack(ctx);
-      await ctx.reply(
-        'Что-то пошло не так с моей стороны. Данные не потерялись — давай попробуем снова.',
+      await screen(ctx, 
+        'Что-то сломалось на моей стороне. Ничего не потерялось — попробуем ещё раз.',
         kb([[callback('🏠 В начало', 'menu')]]),
       );
     } catch (replyError) {

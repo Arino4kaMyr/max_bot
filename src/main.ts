@@ -1,4 +1,4 @@
-import { spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,7 +14,8 @@ import { syncCity } from './sync/kudago.js';
 // API платформы MAX работает на сертификате НУЦ Минцифры, которого нет
 // в наборе доверенных сертификатов Node. Без него соединение падает с
 // UNABLE_TO_GET_ISSUER_CERT_LOCALLY. Подключаем сертификаты до первого вызова.
-ensureCaBundle();
+// В перезапущенном родителе этот await не завершается никогда — работает потомок.
+await ensureCaBundle();
 
 const env = loadEnv();
 const cityName = CITY_NAMES[env.CITY_SLUG] ?? env.CITY_SLUG;
@@ -102,7 +103,7 @@ async function shutdown(signal: string): Promise<void> {
  * задать её из кода нельзя — приходится один раз перезапуститься с ней.
  * В Docker переменная задана в образе, и перезапуск не происходит.
  */
-function ensureCaBundle(): void {
+async function ensureCaBundle(): Promise<void> {
   if (process.env.NODE_EXTRA_CA_CERTS || process.env.CA_BUNDLE_APPLIED) return;
 
   const here = dirname(fileURLToPath(import.meta.url));
@@ -110,9 +111,23 @@ function ensureCaBundle(): void {
   if (!existsSync(bundle)) return;
 
   // execArgv сохраняет загрузчики (например, tsx) при перезапуске.
-  const result = spawnSync(process.execPath, [...process.execArgv, ...process.argv.slice(1)], {
+  const child = spawn(process.execPath, [...process.execArgv, ...process.argv.slice(1)], {
     stdio: 'inherit',
     env: { ...process.env, NODE_EXTRA_CA_CERTS: bundle, CA_BUNDLE_APPLIED: '1' },
   });
-  process.exit(result.status ?? 0);
+
+  // Сигнал родителю должен останавливать и дочерний процесс, иначе бот
+  // переживает kill и продолжает опрашивать MAX параллельно со следующим
+  // запуском — получаются дубли ответов от разных версий кода.
+  for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const) {
+    process.on(signal, () => child.kill(signal));
+  }
+
+  child.on('exit', (code, signal) => {
+    process.exit(signal ? 1 : (code ?? 0));
+  });
+
+  // Родитель дальше не идёт: иначе запустился бы второй экземпляр бота,
+  // и MAX получил бы двух подписчиков на одни и те же обновления.
+  return new Promise<void>(() => {});
 }

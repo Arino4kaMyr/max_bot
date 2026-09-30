@@ -19,7 +19,7 @@ import {
   type Venue,
 } from '../../data/repos.js';
 import { checklist, questionFor, submitAnswer, venueLine } from '../../services/contribute.js';
-import { ack, patchPayload, setScene, stateOf } from '../context.js';
+import { ack, patchPayload, screen, setScene, stateOf } from '../context.js';
 import { HOME_ROW, kb, type Row } from '../keyboards.js';
 
 const { callback, requestGeoLocation } = Keyboard.button;
@@ -28,10 +28,10 @@ export function registerContribute(bot: Composer<Context>): void {
   bot.action('con:start', async (ctx) => {
     await ack(ctx);
     await setScene(ctx, 'contribute_pick');
-    await ctx.reply(
-      'Спасибо, что помогаешь.\n\n' +
-        'Данных о доступности нигде нет централизованно — их собирают те, кто был на месте. ' +
-        'Несколько вопросов, ответы увидят люди, которые ищут это место.\n\n' +
+    await screen(ctx, 
+      'Спасибо.\n\n' +
+        'Единой базы доступности не существует: её собирают те, кто был на месте. ' +
+        'Твои ответы увидят люди, которые будут решать, идти им туда или нет.\n\n' +
         'Где ты был?',
       kb([
         [callback('📋 Выбрать из списка', 'con:list')],
@@ -46,13 +46,13 @@ export function registerContribute(bot: Composer<Context>): void {
     await ack(ctx);
     const { city } = stateOf(ctx);
     const venues = await venuesNeedingData(city.id);
-    await replyVenueList(ctx, venues, 'По этим местам данных меньше всего:');
+    await replyVenueList(ctx, venues, 'Об этих местах пока известно меньше всего:');
   });
 
   bot.action('con:search', async (ctx) => {
     await ack(ctx);
     await setScene(ctx, 'contribute_search');
-    await ctx.reply('Напиши название места — поищу в справочнике.', kb([HOME_ROW]));
+    await screen(ctx, 'Напиши название места — поищу его в справочнике.', kb([HOME_ROW]));
   });
 
   bot.action(/^con:v:(\d+)$/, async (ctx) => {
@@ -87,11 +87,11 @@ export function registerContribute(bot: Composer<Context>): void {
     const venueId = Number(ctx.match?.[1]);
     await ack(ctx);
     await setScene(ctx, 'contribute_photo', { venueId });
-    await ctx.reply(
-      'Пришли фотографию входа.\n\n' +
-        'Это ценнее любого чек-листа: «пандус есть» и «пандус под 45°» — одинаковое «да», ' +
-        'а по фото человек решает сам.',
-      kb([[callback('Пропустить', 'menu')]]),
+    await screen(ctx, 
+      'Если получится, пришли фотографию входа.\n\n' +
+        'Она говорит больше любых ответов: «пандус есть» звучит одинаково и для удобного ' +
+        'съезда, и для крутой горки. По снимку человек поймёт сам.',
+      kb([[callback('Не сейчас', 'menu')]]),
     );
   });
 
@@ -105,14 +105,14 @@ export function registerContribute(bot: Composer<Context>): void {
       if (!query) return next();
       const venues = await findVenueByName(city.id, query);
       if (venues.length === 0) {
-        await ctx.reply(
-          'Не нашёл такого места в справочнике Казани.\n' +
-            'Попробуй часть названия — или выбери из списка.',
+        await screen(ctx, 
+          'Такого места в справочнике Казани не нашлось.\n' +
+            'Попробуй часть названия — или посмотри список.',
           kb([[callback('📋 Показать список', 'con:list')], HOME_ROW]),
         );
         return;
       }
-      await replyVenueList(ctx, venues, 'Нашёл:');
+      await replyVenueList(ctx, venues, 'Вот что нашлось:');
       return;
     }
 
@@ -123,9 +123,9 @@ export function registerContribute(bot: Composer<Context>): void {
 
       await savePhoto({ venueId, maxUserId: user.maxUserId, url });
       await setScene(ctx, null);
-      await ctx.reply(
-        'Фото сохранил — теперь его увидят все, кто ищет это место.',
-        kb([[callback('✍️ Отметить ещё место', 'con:start')], HOME_ROW]),
+      await screen(ctx, 
+        'Фотография сохранена. Её увидит каждый, кто будет присматриваться к этому месту.',
+        kb([[callback('✍️ Рассказать о другом месте', 'con:start')], HOME_ROW]),
       );
       return;
     }
@@ -133,7 +133,7 @@ export function registerContribute(bot: Composer<Context>): void {
     const location = ctx.location;
     if (location && session.scene === 'contribute_pick') {
       const venues = await nearestVenues(city.id, location.latitude, location.longitude);
-      await replyVenueList(ctx, venues, 'Ближайшие места из справочника:');
+      await replyVenueList(ctx, venues, 'Вот что есть поблизости:');
       return;
     }
 
@@ -143,23 +143,23 @@ export function registerContribute(bot: Composer<Context>): void {
 
 async function replyVenueList(ctx: Context, venues: Venue[], intro: string): Promise<void> {
   if (venues.length === 0) {
-    await ctx.reply('В справочнике пока пусто.', kb([HOME_ROW]));
+    await screen(ctx, 'В справочнике пока пусто.', kb([HOME_ROW]));
     return;
   }
   const rows: Row[] = venues.map((v) => [callback(trim(venueLine(v)), `con:v:${v.id}`)]);
   rows.push(HOME_ROW);
-  await ctx.reply(intro, kb(rows));
+  await screen(ctx, intro, kb(rows));
 }
 
 async function startChecklist(ctx: Context, venueId: number): Promise<void> {
   const venue = await getVenue(venueId);
   if (!venue) {
-    await ctx.reply('Не нашёл это место.', kb([HOME_ROW]));
+    await screen(ctx, 'Не могу найти это место в справочнике.', kb([HOME_ROW]));
     return;
   }
   const keys = checklist().map((q) => q.key);
   await setScene(ctx, 'contribute_checklist', { venueId, keys }, 0);
-  await ctx.reply(`${venue.name}. Несколько вопросов — отвечай как помнишь.`);
+  await screen(ctx, `${venue.name}. Отвечай как помнишь — если не уверен, так и скажи.`);
   await askNext(ctx);
 }
 
@@ -180,11 +180,11 @@ async function askNext(ctx: Context): Promise<void> {
     return askNext(ctx);
   }
 
-  await ctx.reply(
+  await screen(ctx, 
     `${index + 1} из ${keys.length}. ${question.text}`,
     kb([
       [callback('Да', 'con:a:yes'), callback('Нет', 'con:a:no')],
-      [callback('Не заметил', 'con:a:skip')],
+      [callback('Не обратил внимания', 'con:a:skip')],
     ]),
   );
 }
@@ -196,13 +196,13 @@ async function finishChecklist(ctx: Context, venueId: number | undefined): Promi
   const total = await contributionCount(user.maxUserId);
   const rows: Row[] = [];
   if (venueId != null) rows.push([callback('📷 Добавить фото входа', `con:photo:${venueId}`)]);
-  rows.push([callback('✍️ Отметить ещё место', 'con:start')]);
+  rows.push([callback('✍️ Рассказать о другом месте', 'con:start')]);
   rows.push(HOME_ROW);
 
-  await ctx.reply(
-    `Готово. Спасибо!\n\n` +
-      `Твои ответы увидят все, кто будет искать это место.\n` +
-      `Всего от тебя — ${total} ${factPlural(total)}.`,
+  await screen(ctx, 
+    'Готово. Спасибо — это правда важно.\n\n' +
+      'Твои ответы увидит каждый, кто будет выбирать это место.\n' +
+      `Всего с твоей помощью собрано: ${total} ${factPlural(total)}.`,
     kb(rows),
   );
 }

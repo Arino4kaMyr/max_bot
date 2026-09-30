@@ -1,54 +1,74 @@
 /**
- * Подбор событий: период, фильтры, карточки, «я пойду».
+ * Подбор событий: период, фильтры, колода карточек.
  *
  * События с вердиктом «не подходит» и «нет данных» не выбрасываются —
- * они сворачиваются в отдельные блоки, чтобы человек сам решал.
+ * они лежат отдельными наборами, чтобы решение оставалось за человеком.
  */
 
 import type { Composer, Context } from '@maxhub/max-bot-api';
 import { Keyboard } from '@maxhub/max-bot-api';
 import type { Verdict } from '../../domain/matching.js';
+import { categoriesInUse, getEvent, markAttendance, type UserRow } from '../../data/repos.js';
 import {
-  categoriesInUse,
-  getEvent,
-  markAttendance,
-  type UserRow,
-} from '../../data/repos.js';
-import { recommend, situationsOf, type RecommendFilter } from '../../services/recommend.js';
+  matchOne,
+  recommend,
+  situationsOf,
+  type RecommendFilter,
+  type RecommendResult,
+} from '../../services/recommend.js';
 import { PERIOD_LABEL, periodRange, type Period } from '../../services/time.js';
-import { ack, patchPayload, stateOf } from '../context.js';
-import { HOME_ROW, kb, eventRow, periodRows, type Row } from '../keyboards.js';
-import { renderEvent } from '../render/event.js';
+import { ack, patchPayload, screen, stateOf } from '../context.js';
+import { HOME_ROW, kb, periodRows, type Row } from '../keyboards.js';
+import { categoryOf } from '../render/categories.js';
+import { deckKeyboard, renderCard, type DeckState } from '../render/deck.js';
 
 const { callback } = Keyboard.button;
 
-const CATEGORY_LABEL: Record<string, string> = {
-  exhibition: 'Выставки',
-  theater: 'Театр',
-  concert: 'Концерты',
-  festival: 'Фестивали',
-  education: 'Лекции',
-  entertainment: 'Развлечения',
-  kids: 'Детям',
-  tour: 'Экскурсии',
-  photo: 'Фото',
-  cinema: 'Кино',
-  party: 'Вечеринки',
-};
+/** Сколько событий кладём в колоду — дальше листать никто не будет. */
+const DECK_LIMIT = 20;
 
-const MAX_CARDS = 5;
+const BUCKET_PRIORITY: Verdict[] = ['fits', 'partial', 'unknown', 'unfit'];
 
 export function registerDiscover(bot: Composer<Context>): void {
   bot.action('find:menu', async (ctx) => {
     await ack(ctx);
-    await ctx.reply('Когда хочешь пойти?', kb(periodRows()));
+    await screen(ctx, 'Когда планируешь выбраться?', kb(periodRows()));
   });
 
   bot.action(/^find:(today|weekend|week)$/, async (ctx) => {
     const period = ctx.match?.[1] as Period;
     await ack(ctx);
-    await showResults(ctx, period);
+    await openDeck(ctx, period);
   });
+
+  // --- листание колоды ---
+
+  bot.action(['deck:prev', 'deck:next'], async (ctx) => {
+    const forward = ctx.callback?.payload === 'deck:next';
+    const deck = deckOf(ctx);
+    if (!deck) return ack(ctx);
+
+    const index = Math.min(Math.max(deck.index + (forward ? 1 : -1), 0), deck.ids.length - 1);
+    await ack(ctx);
+    await showCard(ctx, { ...deck, index });
+  });
+
+  bot.action(/^deck:tab:(fits|partial|unknown|unfit)$/, async (ctx) => {
+    const bucket = ctx.match?.[1] as Verdict;
+    const deck = deckOf(ctx);
+    const ids = (deck?.all?.[bucket] ?? []).slice(0, DECK_LIMIT);
+    if (!deck || ids.length === 0) return ack(ctx);
+
+    await ack(ctx);
+    await showCard(ctx, { ...deck, bucket, ids, index: 0 });
+  });
+
+  // Края колоды и счётчик — кнопки без действия, но «часики» снять нужно.
+  bot.action(['deck:edge', 'deck:noop'], async (ctx) => {
+    await ack(ctx);
+  });
+
+  // --- фильтры ---
 
   bot.action('filter:menu', async (ctx) => {
     await ack(ctx);
@@ -59,7 +79,10 @@ export function registerDiscover(bot: Composer<Context>): void {
 
     const rows = chunk(
       categories.map((c) =>
-        callback(`${active.category === c ? '☑️ ' : ''}${CATEGORY_LABEL[c] ?? c}`, `filter:cat:${c}`),
+        callback(
+          `${active.category === c ? '☑️ ' : ''}${categoryOf(c).icon} ${categoryOf(c).label}`,
+          `filter:cat:${c}`,
+        ),
       ),
       2,
     );
@@ -67,162 +90,143 @@ export function registerDiscover(bot: Composer<Context>): void {
     rows.push([callback('Сбросить фильтры', 'filter:reset')]);
     rows.push([callback('⬅️ К выбору периода', 'find:menu')]);
 
-    await ctx.reply('Что показывать?', kb(rows));
+    await screen(ctx, 'Что показывать?', kb(rows));
   });
 
   bot.action(/^filter:cat:(.+)$/, async (ctx) => {
     const category = ctx.match?.[1] ?? null;
-    const { session } = stateOf(ctx);
-    const current = filterOf(session.payload);
+    const current = filterOf(stateOf(ctx).session.payload);
     await patchPayload(ctx, {
       filter: { ...current, category: current.category === category ? null : category },
     });
     await ack(ctx, 'Фильтр обновлён');
-    await ctx.reply('Когда хочешь пойти?', kb(periodRows()));
+    await screen(ctx, 'Когда планируешь выбраться?', kb(periodRows()));
   });
 
   bot.action('filter:free', async (ctx) => {
-    const { session } = stateOf(ctx);
-    const current = filterOf(session.payload);
+    const current = filterOf(stateOf(ctx).session.payload);
     await patchPayload(ctx, { filter: { ...current, freeOnly: !current.freeOnly } });
     await ack(ctx, 'Фильтр обновлён');
-    await ctx.reply('Когда хочешь пойти?', kb(periodRows()));
+    await screen(ctx, 'Когда планируешь выбраться?', kb(periodRows()));
   });
 
   bot.action('filter:reset', async (ctx) => {
     await patchPayload(ctx, { filter: { category: null, freeOnly: false } });
     await ack(ctx, 'Фильтры сброшены');
-    await ctx.reply('Когда хочешь пойти?', kb(periodRows()));
+    await screen(ctx, 'Когда планируешь выбраться?', kb(periodRows()));
   });
 
-  bot.action(/^more:(unknown|unfit)$/, async (ctx) => {
-    const verdict = ctx.match?.[1] as Verdict;
-    await ack(ctx);
-    const { session } = stateOf(ctx);
-    const period = (session.payload.period as Period | undefined) ?? 'weekend';
-    await showResults(ctx, period, verdict);
-  });
+  // --- действия по карточке ---
 
   bot.action(/^go:(\d+)$/, async (ctx) => {
     const eventId = Number(ctx.match?.[1]);
-    const { user, city } = stateOf(ctx);
+    const { user } = stateOf(ctx);
     await markAttendance(user.maxUserId, eventId);
-    await ack(ctx, 'Отметил');
 
     const event = await getEvent(eventId);
-    await ctx.reply(
-      `Отметил: ${event?.title ?? 'событие'}.\n\n` +
-        'После похода спрошу пару вопросов о доступности — это поможет следующим.',
+    await ack(ctx, `Записал: ${event?.title ?? 'событие'}`);
+
+    // Остаёмся в колоде: отметка события не должна сбивать просмотр.
+    const deck = deckOf(ctx);
+    if (deck) {
+      await showCard(ctx, deck);
+      return;
+    }
+    await screen(
+      ctx,
+      'Записал. Когда сходишь, спрошу, как там оказалось на деле — это поможет тем, кто пойдёт следом.',
       kb([[callback('🔎 Найти ещё', 'find:menu')], HOME_ROW]),
     );
-    void city;
   });
 
   bot.action(/^req:(\d+)$/, async (ctx) => {
     await ack(ctx, 'Добавил в очередь проверки');
-    await ctx.reply(
-      'Отметил площадку как требующую проверки.\n\n' +
-        'Если окажешься рядом — можешь заполнить данные сам, это пара кнопок.',
-      kb([[callback('✍️ Помочь с данными', 'con:start')], HOME_ROW]),
+    await screen(ctx, 
+      'Отметил: по этому месту нужны данные.\n\n' +
+        'Если вдруг окажешься там — расскажи, как всё устроено на входе.',
+      kb([[callback('✍️ Рассказать о месте', 'con:start')], HOME_ROW]),
     );
   });
 }
 
-async function showResults(ctx: Context, period: Period, only?: Verdict): Promise<void> {
+/** Состояние колоды вместе с полным раскладом по наборам. */
+interface StoredDeck extends DeckState {
+  all: Partial<Record<Verdict, number[]>>;
+  tz: string;
+}
+
+function deckOf(ctx: Context): StoredDeck | null {
+  const deck = stateOf(ctx).session.payload.deck as StoredDeck | undefined;
+  return deck?.ids?.length ? deck : null;
+}
+
+async function openDeck(ctx: Context, period: Period): Promise<void> {
   const { user, city, session } = stateOf(ctx);
   await patchPayload(ctx, { period });
 
-  await ctx.reply('Ищу события…');
+  await screen(ctx, 'Ищу события…');
 
   const filter = filterOf(session.payload);
   const result = await recommend(user, city.id, period, city.tz, filter);
 
   if (result.total === 0) {
-    await ctx.reply(
-      `${PERIOD_LABEL[period]} в афише пусто.\n` +
-        (result.lastSync ? `Афиша обновлялась ${result.lastSync.toLocaleString('ru-RU')}.` : '') +
-        '\nПопробуй другой период или сбрось фильтры.',
+    await screen(ctx, 
+      `${PERIOD_LABEL[period]} в афише пусто. Попробуй другой период или сними фильтры.`,
       kb(periodRows()),
     );
     return;
   }
 
-  if (only) {
-    await renderBucket(ctx, result.buckets[only], only, city.tz);
-    await ctx.reply('Что дальше?', kb(periodRows()));
+  const all: Partial<Record<Verdict, number[]>> = {};
+  const counts: Partial<Record<Verdict, number>> = {};
+  for (const bucket of BUCKET_PRIORITY) {
+    const ids = result.buckets[bucket].map((r) => r.event.id).slice(0, DECK_LIMIT);
+    all[bucket] = ids;
+    counts[bucket] = ids.length;
+  }
+
+  const bucket = BUCKET_PRIORITY.find((b) => (counts[b] ?? 0) > 0)!;
+  const deck: StoredDeck = { ids: all[bucket]!, index: 0, bucket, counts, all, tz: city.tz };
+
+  await screen(ctx, summary(user, period, result));
+  await showCard(ctx, deck);
+}
+
+/** Показывает карточку в том же сообщении-экране. */
+async function showCard(ctx: Context, deck: StoredDeck): Promise<void> {
+  const { user } = stateOf(ctx);
+  const eventId = deck.ids[deck.index];
+  if (eventId == null) return;
+
+  const item = await matchOne(user, eventId);
+  if (!item) {
+    await screen(ctx, 'Это событие уже прошло.', kb(periodRows()));
     return;
   }
 
-  const suitable = [...result.buckets.fits, ...result.buckets.partial];
-  const header = summary(user, period, suitable.length, result.total);
-  await ctx.reply(header);
+  await patchPayload(ctx, { deck });
 
-  if (suitable.length === 0) {
-    await ctx.reply(
-      'Под твой профиль ничего не подошло. Так бывает: по большинству площадок ' +
-        'данных пока нет, а «нет данных» я не выдаю за «доступно».',
-    );
-  }
-
-  for (const item of suitable.slice(0, MAX_CARDS)) {
-    await ctx.reply(
-      renderEvent(item.event, item.match, city.tz),
-      kb([eventRow(item.event.id, item.event.lat, item.event.lon)]),
-    );
-  }
-
-  const rows: Row[] = [];
-  if (result.buckets.unknown.length > 0) {
-    rows.push([callback(`❓ Без данных — ${result.buckets.unknown.length}`, 'more:unknown')]);
-  }
-  if (result.buckets.unfit.length > 0) {
-    rows.push([callback(`❌ Не подходят — ${result.buckets.unfit.length}`, 'more:unfit')]);
-  }
-  rows.push([callback('🔎 Другой период', 'find:menu')]);
-  rows.push(HOME_ROW);
-
-  await ctx.reply(sourceNote(result.lastSync), kb(rows));
+  await screen(ctx, renderCard(item, deck, deck.tz), kb(deckKeyboard(item, deck)));
 }
 
-async function renderBucket(
-  ctx: Context,
-  items: { event: Parameters<typeof renderEvent>[0]; match: Parameters<typeof renderEvent>[1] }[],
-  verdict: Verdict,
-  tz: string,
-): Promise<void> {
-  const intro =
-    verdict === 'unknown'
-      ? 'Эти места никто ещё не проверял. Если побываешь — отметь, что там с доступностью.'
-      : 'Эти не подходят по твоему профилю. Показываю, чтобы решение было твоим.';
-  await ctx.reply(intro);
-
-  for (const item of items.slice(0, MAX_CARDS)) {
-    const rows = [eventRow(item.event.id, item.event.lat, item.event.lon)];
-    if (verdict === 'unknown' && item.event.venueId) {
-      rows.push([callback('🔍 Запросить проверку', `req:${item.event.venueId}`)]);
-    }
-    await ctx.reply(renderEvent(item.event, item.match, tz), kb(rows));
-  }
-}
-
-function summary(user: UserRow, period: Period, suitable: number, total: number): string {
+function summary(user: UserRow, period: Period, result: RecommendResult): string {
   const situations = situationsOf(user);
-  const who = user.groupProfile?.length
-    ? `вашей компании (${user.groupProfile.length} чел.)`
-    : 'твоего профиля';
+  const suitable = result.buckets.fits.length + result.buckets.partial.length;
+  const when = PERIOD_LABEL[period].toLowerCase();
 
   if (situations.length === 0) {
-    return `${PERIOD_LABEL[period]}: нашёл ${total} ${plural(total)}. Профиль не задан, показываю всё.`;
+    return `Нашёл ${result.total} ${plural(result.total)} ${when}. Профиль не задан — показываю всё.`;
   }
-  return (
-    `${PERIOD_LABEL[period]}: из ${total} ${plural(total)} под ${who} ` +
-    `подходит ${suitable}.`
-  );
-}
 
-function sourceNote(lastSync: Date | null): string {
-  const when = lastSync ? lastSync.toLocaleDateString('ru-RU') : 'не обновлялась';
-  return `Афиша: KudaGo, обновлена ${when}. Данные о доступности — наши и от посетителей.`;
+  const who = user.groupProfile?.length ? `вашей компании` : 'тебя';
+  if (suitable === 0) {
+    return (
+      `Из ${result.total} ${plural(result.total)} ${when} для ${who} не подошло ничего.\n` +
+      'По большинству мест сведений пока нет, а неизвестное я не выдаю за доступное.'
+    );
+  }
+
+  return `Из ${result.total} ${plural(result.total)} ${when} для ${who} подходит ${suitable}. Листай карточки.`;
 }
 
 function plural(n: number): string {
@@ -237,8 +241,8 @@ function filterOf(payload: Record<string, unknown>): RecommendFilter {
   return { category: raw?.category ?? null, freeOnly: raw?.freeOnly ?? false };
 }
 
-function chunk<T>(items: T[], size: number): T[][] {
-  const rows: T[][] = [];
+function chunk(items: Row, size: number): Row[] {
+  const rows: Row[] = [];
   for (let i = 0; i < items.length; i += size) rows.push(items.slice(i, i + size));
   return rows;
 }

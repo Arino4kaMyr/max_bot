@@ -8,6 +8,7 @@
 import { evaluate, VERDICT_ORDER, type FactMap, type MatchResult, type Verdict } from '../domain/matching.js';
 import { requirementsFor, type Situation } from '../domain/profile.js';
 import {
+  eventsByIds,
   eventsBetween,
   factsForVenues,
   lastSyncAt,
@@ -95,4 +96,26 @@ export const VERDICT_SEQUENCE: Verdict[] = (['fits', 'partial', 'unknown', 'unfi
 /** Сколько событий подходит — для проактивной сводки. */
 export function countSuitable(result: RecommendResult): number {
   return result.buckets.fits.length + result.buckets.partial.length;
+}
+
+/** Пересчёт одного события — нужен при листании колоды. */
+export async function matchOne(
+  user: UserRow,
+  eventId: number,
+): Promise<Recommendation | null> {
+  const [event] = await eventsByIds([eventId]);
+  if (!event) return null;
+
+  const requirements = requirementsFor(situationsOf(user));
+  const [facts, overrides] = await Promise.all([
+    event.venueId ? factsForVenues([event.venueId]) : Promise.resolve(new Map()),
+    overridesForEvents([event.id]),
+  ]);
+
+  const merged: FactMap = {
+    ...(event.venueId ? (facts.get(event.venueId) ?? {}) : {}),
+    ...(overrides.get(event.id) ?? {}),
+  };
+
+  return { event, match: evaluate(requirements, merged) };
 }

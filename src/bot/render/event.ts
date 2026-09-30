@@ -9,23 +9,10 @@ import { STATUS_ICON, VERDICT_LABEL, type MatchResult } from '../../domain/match
 import { trustLabel, type Fact } from '../../domain/trust.js';
 import type { EventRow } from '../../data/repos.js';
 import { formatEventDate } from '../../services/time.js';
-
-const CATEGORY_ICON: Record<string, string> = {
-  exhibition: '🖼',
-  theater: '🎭',
-  concert: '🎵',
-  festival: '🎪',
-  education: '📚',
-  entertainment: '🎉',
-  kids: '🧸',
-  tour: '🚶',
-  photo: '📷',
-  party: '🪩',
-  cinema: '🎬',
-};
+import { categoryOf } from './categories.js';
 
 export function renderEvent(event: EventRow, match: MatchResult, tz: string): string {
-  const icon = CATEGORY_ICON[event.category ?? ''] ?? '📌';
+  const icon = categoryOf(event.category).icon;
   const lines: string[] = [];
 
   lines.push(`${icon} ${event.title}`);

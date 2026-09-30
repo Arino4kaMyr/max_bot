@@ -18,7 +18,7 @@ export const HOME_ROW: Row = [callback('🏠 В начало', 'menu')];
 export function mainMenu(hasProfile: boolean): Row[] {
   return [
     [callback('🔎 Подобрать, куда сходить', hasProfile ? 'find:menu' : 'onb:start')],
-    [callback('✍️ Помочь с данными о доступности', 'con:start')],
+    [callback('✍️ Рассказать о месте, где был', 'con:start')],
     hasProfile
       ? [callback('⚙️ Мой профиль', 'onb:start')]
       : [callback('👥 Идём компанией', 'grp:start')],
@@ -32,7 +32,7 @@ export function situationRows(selected: Situation[], prefix: 'onb' | 'grp'): Row
       `${prefix}:sit:${id}`,
     ),
   ]);
-  rows.push([callback(selected.length ? '✅ Готово' : '➡️ Пропустить', `${prefix}:done`)]);
+  rows.push([callback(selected.length ? '✅ Готово' : '➡️ Ничего из этого', `${prefix}:done`)]);
   return rows;
 }
 

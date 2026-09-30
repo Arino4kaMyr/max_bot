@@ -7,7 +7,7 @@
  * заданий для контрибьюторов.
  */
 
-import { ensureCity, upsertEvent, upsertVenue } from '../data/repos.js';
+import { deleteEventsByCategories, ensureCity, upsertEvent, upsertVenue } from '../data/repos.js';
 
 const API = 'https://kudago.com/public-api/v1.4';
 const TIMEOUT_MS = 10_000;
@@ -15,6 +15,9 @@ const TIMEOUT_MS = 10_000;
 /** Постоянные экспозиции KudaGo отдаёт с концом в 9999 году. */
 const FAR_FUTURE = new Date('2100-01-01').getTime();
 const PERMANENT_AFTER_DAYS = 120;
+
+/** Не досуг: промоакции магазинов и скидочные предложения. */
+const EXCLUDED_CATEGORIES = new Set(['stock']);
 
 interface KudagoPlace {
   id: number;
@@ -91,6 +94,11 @@ export async function syncCity(
     pages++;
 
     for (const raw of page.results) {
+      if (raw.categories?.some((c) => EXCLUDED_CATEGORIES.has(c))) {
+        skipped++;
+        continue;
+      }
+
       const slot = pickSlot(raw.dates);
       if (!slot) {
         skipped++;
@@ -140,7 +148,13 @@ export async function syncCity(
     url = page.next ?? '';
   }
 
+  await dropExcluded();
   return { events, venuesCreated, skipped };
+}
+
+/** Убирает события исключённых категорий, загруженные прежними версиями. */
+async function dropExcluded(): Promise<void> {
+  await deleteEventsByCategories([...EXCLUDED_CATEGORIES]);
 }
 
 /**
